@@ -1,7 +1,7 @@
 # This workflow will install Python dependencies, run tests and lint with a variety of Python versions
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: NeuralPy Build Check
+name: Auror Build Check
 
 on:
   push:
@@ -38,4 +38,4 @@ jobs:
       run: |
         pip install pytest
         pip install pytest-cov
-        pytest --cov=neuralpy tests/
+        pytest --cov=auror tests/
