@@ -1,2 +1,2 @@
-# neuralpy-slim
-NeuralPy-Slim Deep Learning library
+# Auror
+Auror Deep Learning library
