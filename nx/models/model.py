@@ -1,10 +1,34 @@
-from torch import device
-from torch import cuda
+import torch
 
 
 class Model:
+    @staticmethod
+    def __detect_hardware(training_device, force_cpu):
+        """Private method for the Model class that automatically detects the hardware
+        to use (CPU or CUDA) based on the passed parameters on the constructor.
+
+        Args:
+            training_device (torch.device | None): torch device or None
+            force_cpu (bool): When to use CPU under any circusstance
+                even if GPU is available
+
+        Returns:
+            (torch.device): returns a torch device to be used for training
+        """
+        if force_cpu:
+            return torch.device("cpu")
+
+        if training_device:
+            return training_device
+
+        if torch.cuda.is_available():
+            # TODO: Do something if there is more than 1 GPU
+            return torch.device("cuda:0")
+
+        return torch.device("cpu")
+
     def __init__(self, training_device=None, force_cpu=False):
-        """NeuralPyX Model class
+        """Auror Model class
 
         This is class is used for building a NeuralPyX model from a PyTorch model.
         It only supports class based and sequential based PyTorch model.
@@ -21,7 +45,7 @@ class Model:
             ValueError: You have provided an invalid value for the parameter force_cpu
         """
         # Checking the training_device parameter
-        if not (isinstance(training_device, device) or training_device is None):
+        if not (isinstance(training_device, torch.device) or training_device is None):
             raise ValueError("Please provide a valid training_device parameter")
 
         # Checking the force_cpu parameter
@@ -31,21 +55,18 @@ class Model:
             )
 
         # Detecting the hardware to train the model
-        self.__detect_hardware(training_device, force_cpu)
-
-    def __detect_hardware(self, training_device, force_cpu):
-        if training_device:
-            self.__device = training_device
-        elif force_cpu:
-            self.__device = device("cpu")
-        else:
-            if cuda.is_available():
-                # TODO: Do something id there is more than 1 GPU
-                self.__device = device("cuda:0")
-            else:
-                self.__device = device("cpu")
+        self.__device = self.__detect_hardware(training_device, force_cpu)
+        print(f"--> Using {str(self.__device).upper()} as a traning device")
 
     def attach_pytorch_model(self, model):
+        """Attaches a PyTorch model to the Auror Model class
+
+        Args:
+            model (pytorch model): A Sequential and Class based PyTorch model
+
+        Raises:
+            ValueError: If it receives an invalid PyTorch model
+        """
         # Checking the model parameter
         # TODO: Need to check the model is valid PyTorch model
         if model is None:
@@ -54,6 +75,14 @@ class Model:
         self.__model = model
 
     def attach_loss_function(self, loss_function):
+        """Attaches a PyTorch loss function to the Auror Model class
+
+        Args:
+            loss_function (pytorch loss function): A valid PyTorch loss function
+
+        Raises:
+            ValueError: If it receives an invalid PyTorch loss function
+        """
         # Checking the loss_function parameter
         # TODO: Need to check the loss_function is valid PyTorch loss_function
         if loss_function is None:
@@ -62,6 +91,14 @@ class Model:
         self.__loss_function = loss_function
 
     def attach_optimizer(self, optimizer):
+        """Attaches a PyTorch optimizer to the Auror Model class
+
+        Args:
+            model (pytorch optimizer): A valid PyTorch optimizer
+
+        Raises:
+            ValueError: If it receives an invalid PyTorch optimizer
+        """
         # Checking the optimizer parameter
         # TODO: Need to check the optimizer is valid PyTorch optimizer
         if optimizer is None:
@@ -82,10 +119,41 @@ class Model:
         pass
 
     def summary(self):
-        pass
+        """Prints a summary of the model with all the layers, number of
+        Trainable and Non-Trainable parameters.
 
-    def save(self):
-        pass
+        Raises:
+            ValueError: If there is no model
+        """
+        if not self.__model:
+            raise ValueError("There is no compiled model to generate a summary")
+
+        print(self.__model)
+        print(
+            "Total Number \
+            of Parameters: ",
+            sum(p.numel() for p in self.__model.parameters()),
+        )
+        print(
+            "Total Number of Trainable \
+            Parameters: ",
+            sum(p.numel() for p in self.__model.parameters() if p.requires_grad),
+        )
+
+    def save(self, path):
+        """The .save() method is responsible for saving a trained model. This method is
+        to be shared with someone without any code access.
+
+        Args:
+            path (string): The path to store the data
+
+        Raises:
+            ValueError: If there is no correct path passed to this method
+        """
+        if not path or not isinstance(path, str):
+            raise ValueError("Please provide a valid path")
+
+        torch.save(self.__model, path)
 
     def load(self):
         pass
