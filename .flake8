@@ -26,7 +26,7 @@ exclude =
     docs,
     htmlcov,
     ignore,
-    neuralpy_torch.egg-info,
+    auror_torch.egg-info,
     example.py,
     conftest.py
 
