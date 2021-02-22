@@ -155,11 +155,51 @@ class Model:
 
         torch.save(self.__model, path)
 
-    def load(self):
-        pass
+    def load(self, path):
+        """The .load() method is responsible for loading a model saved using the
+        .save() method.
 
-    def save_for_inference(self):
-        pass
+        Args:
+            path (string): Path of the saved Auror model
 
-    def load_for_inference(self):
-        pass
+        Raises:
+            ValueError: If the path is not valid
+        """
+        if not path or not isinstance(path, str):
+            raise ValueError("Please provide a valid path")
+
+        self.__model = torch.load(path)
+
+    def save_for_inference(self, path):
+        """The .save_for_inference() method is responsible for saving a trained model.
+        This method saves the method only for inference.
+
+        Args:
+            path (string): Path to save the model
+
+        Raises:
+            ValueError: If the path is not valid
+        """
+        if not path or not isinstance(path, str):
+            raise ValueError("Please provide a valid path")
+
+        torch.save(self.__model.state_dict(), path)
+
+    def load_for_inference(self, path):
+        """The .load_for_inference() method is responsible for loading a trained model
+        only for inference.
+
+        Args:
+            path (string): Path where the model is saved
+
+        Raises:
+            ValueError: If the path is not valid or the if there is valid model loaded
+                in the class
+        """
+        if not path or not isinstance(path, str):
+            raise ValueError("Please provide a valid path")
+
+        if self.__model:
+            self.__model.load_state_dict(torch.load(path))
+        else:
+            raise ValueError("To load the model state, you need to have a model first")
