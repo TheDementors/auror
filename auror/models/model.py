@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 
 class Model:
@@ -26,6 +27,84 @@ class Model:
             return torch.device("cuda:0")
 
         return torch.device("cpu")
+
+    def __calculate_accuracy(y, y_pred):
+        pred = y_pred.argmax(dim=1, keepdim=True)
+
+        corrects = pred.eq(y.view_as(pred)).sum().item()
+
+        return corrects
+
+    def __train_loop(self, batches, labels, batch_size, is_classification):
+        if batches.shape[0] < batch_size:
+            # Batch size can not be greater that train data size
+            raise ValueError(
+                "Batch size is greater than total number of training samples"
+            )
+
+        if batches.shape[0] != labels.shape[0]:
+            # length of X and y should be same
+            raise ValueError(
+                "Length of training input data and training output data should be same"
+            )
+
+        training_loss_score = 0
+        correct_training = 0
+
+        for i in range(0, len(batches), batch_size):
+            batch = batches[i : i + batch_size]
+            label = labels[i : i + batch_size]
+
+            self.__model.zero_grad()
+            outputs = self.__model(batch)
+            train_loss = self.__loss_function(outputs, label)
+
+            train_loss.backward()
+            self.__optimizer.step()
+
+            training_loss_score = train_loss.item()
+
+            if is_classification:
+                corrects = self.__calculate_accuracy(label, outputs)
+
+                correct_training += corrects
+
+        return training_loss_score, correct_training / len(batch) * 100
+
+    def __validation_loop(self, batches, labels, batch_size, is_classification):
+        if batches.shape[0] < batch_size:
+            # Batch size can not be greater that train data size
+            raise ValueError(
+                "Batch size is greater than total number of training samples"
+            )
+
+        if batches.shape[0] != labels.shape[0]:
+            # length of X and y should be same
+            raise ValueError(
+                "Length of training input data and training output data should be same"
+            )
+
+        validation_loss_score = 0
+        correct_validation = 0
+
+        self.__model.eval()
+
+        with torch.no_grad():
+            for i in range(0, len(batches), batch_size):
+                batch = batches[i : i + batch_size]
+                label = labels[i : i + batch_size]
+
+                outputs = self.__model(batch)
+                validation_loss = self.__loss_function(outputs, label)
+
+                validation_loss_score += validation_loss.item()
+
+                if is_classification:
+                    correct_validation += self.__calculate_accuracy(label, outputs)
+
+        validation_loss_score /= batch_size
+
+        return validation_loss_score, correct_validation / len(batches) * 100
 
     def __init__(self, training_device=None, force_cpu=False):
         """Auror Model class
@@ -106,8 +185,64 @@ class Model:
 
         self.__optimizer = optimizer
 
-    def fit(self, train_data, validation_data, batch_size):
-        pass
+    def fit(
+        self,
+        train_data,
+        validation_data,
+        is_classification=False,
+        batch_size=32,
+        epochs=10,
+    ):
+        # TODO: Proper check for the PyTorch DataLoaders
+
+        for epoch in range(epochs):
+            # Training
+            if isinstance(train_data, tuple):
+                batches, labels = train_data
+
+                if not (
+                    isinstance(batches, np.ndarray) or isinstance(labels, np.ndarray)
+                ):
+                    raise ValueError("Please provide a valid data to train")
+
+                batches, labels = torch.from_numpy(batches), torch.from_numpy(labels)
+
+                batches, labels = batches.to(self.__device), labels.to(self.__device)
+
+                self.__train_loop(batches, labels, batch_size, is_classification)
+            else:
+                for local_batch, local_labels in train_data:
+                    local_batch, local_labels = (
+                        local_batch.to(self.__device),
+                        local_labels.to(self.__device),
+                    )
+
+                    self.__train_loop(
+                        local_batch, local_labels, batch_size, is_classification
+                    )
+
+            # Validation
+            if isinstance(validation_data, tuple):
+                batches, labels = validation_data
+
+                if not (
+                    isinstance(batches, np.ndarray) or isinstance(labels, np.ndarray)
+                ):
+                    raise ValueError("Please provide a valid data to validate")
+
+                batches, labels = batches.to(self.__device), labels.to(self.__device)
+
+                self.__validation_loop(batches, labels, batch_size, is_classification)
+            else:
+                for local_batch, local_labels in validation_data:
+                    local_batch, local_labels = (
+                        local_batch.to(self.__device),
+                        local_labels.to(self.__device),
+                    )
+
+                    self.__validation_loop(
+                        local_batch, local_labels, batch_size, is_classification
+                    )
 
     def predict(self, predict_data):
         pass

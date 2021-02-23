@@ -9,7 +9,7 @@ count = True
 show-source = True
 statistics = True
 
-ignore = E133
+ignore = E133, E203
 
 output-file = flake8.log
 tee = True
