@@ -30,6 +30,14 @@ class Model:
 
         return torch.device("cpu")
 
+    def __print_progress(self, current_batch, total_batches, epoch, epochs, loss, accuracy, validation=False):
+        type = "Validation" if validation else "Training"
+
+        left = f"{type} -> Epoch: {epoch+1}/{epochs} Batch: {current_batch+1}/{total_batches}"
+        right = f"Loss: {loss:.4f} Accuracy: {accuracy:.2f}" if self.__is_classification else f"Loss: {loss:.4f}"
+
+        progressbar(current_batch, total_batches, left, right)
+
     def __calculate_accuracy(y, y_pred):
         pred = y_pred.argmax(dim=1, keepdim=True)
 
@@ -37,12 +45,10 @@ class Model:
 
         return corrects
 
-    def __model_loop(self, batch_x, batch_y, is_training, is_classification):
+    def __model_loop(self, batch_x, batch_y, is_training):
         if len(batch_x) != len(batch_y):
             # length of X and y should be same
-            raise ValueError(
-                "Length of training input data and training output data should be same"
-            )
+            raise ValueError("Length of training input data and training output data should be same")
 
         batch_x, batch_y = batch_x.to(self.__device), batch_y.to(self.__device)
 
@@ -63,21 +69,21 @@ class Model:
 
             loss_score += loss.item()
 
-            if is_classification:
+            if self.__is_classification:
                 corrects += Model.__calculate_accuracy(batch_y, outputs)
         else:
             self.__model.eval()
 
             with torch.no_grad():
                 outputs = self.__model(batch_x)
-                loss = self.__loss_function(batch_x, batch_y)
+                loss = self.__loss_function(batch_y, outputs)
 
                 loss_score += loss.item()
 
-                if is_classification:
+                if self.__is_classification:
                     corrects += Model.__calculate_accuracy(batch_y, outputs)
 
-        return loss_score / len(batch_x), corrects / len(batch_x) * 100
+        return loss_score, corrects / len(batch_x) * 100
 
     def __init__(self, training_device=None, force_cpu=False):
         """Auror Model class
@@ -102,15 +108,16 @@ class Model:
 
         # Checking the force_cpu parameter
         if not isinstance(force_cpu, bool):
-            raise ValueError(
-                "You have provided an invalid value for the parameter force_cpu"
-            )
+            raise ValueError("You have provided an invalid value for the parameter force_cpu")
 
         # Detecting the hardware to train the model
         self.__device = self.__detect_hardware(training_device, force_cpu)
         print(f"--> Using {str(self.__device).upper()} as a traning device")
 
-    def attach_pytorch_model(self, model):
+    def parameters(self):
+        return self.__model.parameters()
+
+    def initialize_model(self, model):
         """Attaches a PyTorch model to the Auror Model class
 
         Args:
@@ -126,43 +133,24 @@ class Model:
 
         self.__model = model
 
-    def attach_loss_function(self, loss_function):
-        """Attaches a PyTorch loss function to the Auror Model class
-
-        Args:
-            loss_function (pytorch loss function): A valid PyTorch loss function
-
-        Raises:
-            ValueError: If it receives an invalid PyTorch loss function
-        """
-        # Checking the loss_function parameter
-        # TODO: Need to check the loss_function is valid PyTorch loss_function
-        if loss_function is None:
-            raise ValueError("Please provide a valid PyTorch loss function")
-
-        self.__loss_function = loss_function
-
-    def attach_optimizer(self, optimizer):
-        """Attaches a PyTorch optimizer to the Auror Model class
-
-        Args:
-            model (pytorch optimizer): A valid PyTorch optimizer
-
-        Raises:
-            ValueError: If it receives an invalid PyTorch optimizer
-        """
-        # Checking the optimizer parameter
-        # TODO: Need to check the optimizer is valid PyTorch optimizer
+    def compile(self, optimizer, loss_function, is_classification=True):
         if optimizer is None:
             raise ValueError("Please provide a valid PyTorch optimizer")
 
+        if loss_function is None:
+            raise ValueError("Please provide a valid PyTorch loss function")
+
+        if not isinstance(is_classification, bool):
+            raise ValueError("Please provide a valid value for the parameter is_classification")
+
         self.__optimizer = optimizer
+        self.__loss_function = loss_function
+        self.__is_classification = is_classification
 
     def fit(
         self,
         train_data,
         validation_data,
-        is_classification=False,
         batch_size=None,
         epochs=10,
         total_training_batches=None,
@@ -173,122 +161,72 @@ class Model:
             if isinstance(train_data, tuple):
                 batches, labels = train_data
 
-                if not (
-                    isinstance(batches, np.ndarray) or isinstance(labels, np.ndarray)
-                ):
+                if not (isinstance(batches, np.ndarray) or isinstance(labels, np.ndarray)):
                     raise ValueError("Please provide a valid data to train")
 
                 batches, labels = torch.from_numpy(batches), torch.from_numpy(labels)
 
                 total_loss = 0
-                total_correts = 0
+                total_corrects = 0
 
                 for i in range(0, len(batches), batch_size):
                     batch_x = batches[i : i + batch_size]
                     batch_y = batches[i : i + batch_size]
 
-                    total_loss, total_correts = self.__model_loop(
-                        batch_x=batch_x,
-                        batch_y=batch_y,
-                        is_training=True,
-                        is_classification=is_classification,
-                    )
+                    total_loss, total_corrects = self.__model_loop(batch_x=batch_x, batch_y=batch_y, is_training=True)
 
                     total_batches = int(len(batches) / batch_size)
                     current_batch = int(i / batch_size)
 
-                    progressbar(
-                        current_batch,
-                        total_batches,
-                        f"Training   -> Epoch: {epoch+1}/{epochs} \
-Batch: {current_batch+1}/{total_batches}",
-                        f"Loss: {total_loss:.2f} Accuracy: {total_correts:.2f}"
-                        if is_classification
-                        else f"Loss: {total_loss:.2f}",
-                    )
+                    self.__print_progress(current_batch, total_batches, epoch, epochs, total_loss, total_corrects)
 
                 if validation_data:
                     print("")
 
                     val_batches, val_labels = validation_data
 
-                    if not (
-                        isinstance(val_batches, np.ndarray)
-                        or isinstance(val_labels, np.ndarray)
-                    ):
+                    if not (isinstance(val_batches, np.ndarray) or isinstance(val_labels, np.ndarray)):
                         raise ValueError("Please provide a valid data to validate")
 
-                    val_batches, val_labels = (
-                        torch.from_numpy(val_batches),
-                        torch.from_numpy(val_labels),
-                    )
+                    val_batches, val_labels = (torch.from_numpy(val_batches), torch.from_numpy(val_labels))
 
                     total_validation_loss = 0
                     total_validation_correts = 0
 
                     for i in range(0, len(val_batches), batch_size):
-                        (
-                            total_validation_loss,
-                            total_validation_correts,
-                        ) = self.__model_loop(
-                            batch_x=batch_x,
-                            batch_y=batch_y,
-                            is_training=False,
-                            is_classification=is_classification,
+                        (total_validation_loss, total_validation_correts) = self.__model_loop(
+                            batch_x=batch_x, batch_y=batch_y, is_training=False
                         )
 
                         total_batches = int(len(val_batches) / batch_size)
                         current_batch = int(i / batch_size)
 
-                        progressbar(
+                        self.__print_progress(
                             current_batch,
                             total_batches,
-                            f"Validation -> Epoch: {epoch+1}/{epochs} \
-Batch: {current_batch+1}/{total_batches}",
-                            f"Loss: {total_validation_loss:.2f} \
-Accuracy: {total_validation_correts:.2f}"
-                            if is_classification
-                            else f"Loss: {total_validation_loss:.2f}",
+                            epoch,
+                            epochs,
+                            total_validation_loss,
+                            total_validation_correts,
+                            validation=True,
                         )
+
                 print("")
             else:
-                if (
-                    not isinstance(total_validation_batches, int)
-                    or total_validation_batches <= 0
-                ):
-                    raise ValueError(
-                        "Please provide a valid total_validation_batches parameter"
-                    )
+                if not isinstance(total_validation_batches, int) or total_validation_batches <= 0:
+                    raise ValueError("Please provide a valid total_validation_batches parameter")
 
                 for i, (batch_x, batch_y) in enumerate(train_data):
                     total_loss = 0
-                    total_correts = 0
+                    total_corrects = 0
 
-                    total_loss, total_correts = self.__model_loop(
-                        batch_x=batch_x,
-                        batch_y=batch_y,
-                        is_training=True,
-                        is_classification=is_classification,
-                    )
+                    total_loss, total_corrects = self.__model_loop(batch_x=batch_x, batch_y=batch_y, is_training=True)
 
-                    progressbar(
-                        i,
-                        total_training_batches,
-                        f"Training   -> Epoch: {epoch+1}/{epochs} \
-Batch: {i+1}/{total_training_batches}",
-                        f"Loss: {total_loss:.2f} Accuracy: {total_correts:.2f}"
-                        if is_classification
-                        else f"Loss: {total_loss:.2f}",
-                    )
+                    self.__print_progress(i, total_training_batches, epoch, epochs, total_loss, total_corrects)
 
                 if validation_data:
-                    if (
-                        not isinstance(total_training_batches, int)
-                        or total_training_batches <= 0
-                    ):
-                        raise ValueError(
-                            "Please provide a valid total_training_batches parameter"
-                        )
+                    if not isinstance(total_training_batches, int) or total_training_batches <= 0:
+                        raise ValueError("Please provide a valid total_training_batches parameter")
 
                     print("")
 
@@ -297,25 +235,18 @@ Batch: {i+1}/{total_training_batches}",
                         total_validation_loss = 0
                         total_validation_correts = 0
 
-                        (
-                            total_validation_loss,
-                            total_validation_correts,
-                        ) = self.__model_loop(
-                            batch_x=batch_x,
-                            batch_y=batch_y,
-                            is_training=False,
-                            is_classification=is_classification,
+                        (total_validation_loss, total_validation_correts) = self.__model_loop(
+                            batch_x=batch_x, batch_y=batch_y, is_training=False
                         )
 
-                        progressbar(
+                        self.__print_progress(
                             i,
                             total_validation_batches,
-                            f"Validation -> Epoch: {epoch+1}/{epochs} \
-Batch: {i+1}/{total_validation_batches}",
-                            f"Loss: {total_validation_loss:.2f} \
-Accuracy: {total_validation_correts:.2f}"
-                            if is_classification
-                            else f"Loss: {total_validation_loss:.2f}",
+                            epoch,
+                            epochs,
+                            total_validation_loss,
+                            total_validation_correts,
+                            validation=True,
                         )
 
                 print("")
