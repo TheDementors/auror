@@ -9,10 +9,10 @@ count = True
 show-source = True
 statistics = True
 
+ignore = E133, E203, W503
+
 output-file = flake8.log
 tee = True
-
-ignore = E111, E133, E203, W503
 
 exclude =
     .git,
@@ -34,7 +34,7 @@ filename =
     *.py
 
 disable-noqa = False
-max-line-length = 88
+max-line-length = 120
 max-complexity = 15
 hang-closing = True
 
