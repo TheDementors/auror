@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-from torch._C import Value
 
 from py_progress import progressbar
 from torchsummary import summary
