@@ -17,7 +17,7 @@ btrfsutil==5.10.1
 CacheControl==0.12.6
 cachetools==4.2.1
 caffeine-ng==3.5.1
-cffi==1.14.4
+cffi==1.14.5
 cfgv==3.2.0
 chardet==3.0.4
 chrome-gnome-shell==0.0.0
@@ -46,9 +46,9 @@ future==0.18.2
 gestures==0.2.3
 gitdb==4.0.5
 GitPython==3.1.12
-google-api-core==1.25.1
+google-api-core==1.26.0
 google-api-python-client==1.12.8
-google-auth==1.25.0
+google-auth==1.27.0
 google-auth-httplib2==0.0.4
 googleapis-common-protos==1.52.0
 gufw==21.4.0
@@ -72,7 +72,7 @@ jupyterlab==3.0.0
 jupyterlab-pygments==0.1.2
 jupyterlab-server==2.0.0
 kiwisolver==1.3.1
-layoutswitcherlib==0.8.16
+layoutswitcherlib==0.8.17
 LibAppArmor==3.0.1
 louis==3.16.0
 lxml==4.6.2
@@ -157,7 +157,7 @@ requests==2.25.1
 requests-file==1.5.1
 resolvelib==0.5.4
 retrying==1.3.3
-rsa==4.7
+rsa==4.7.1
 Send2Trash==1.5.0
 setproctitle==1.2.2
 six==1.15.0
@@ -172,6 +172,7 @@ testpath==0.4.4
 tldextract==3.1.0
 toml==0.10.2
 torch==1.7.1+cpu
+torch-summary==1.4.5
 torchaudio==0.7.2
 torchvision==0.8.2+cpu
 tornado==6.1

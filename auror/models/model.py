@@ -2,6 +2,7 @@ import torch
 import numpy as np
 
 from py_progress import progressbar
+from torchsummary import summary
 
 
 class Model:
@@ -285,7 +286,7 @@ class Model:
 
                 self.__print_progress(i // len(batch_x), total_steps, 0, 1, total_loss, total_corrects, validation=True)
 
-    def summary(self):
+    def summary(self, input_shape):
         """Prints a summary of the model with all the layers, number of
         Trainable and Non-Trainable parameters.
 
@@ -295,17 +296,10 @@ class Model:
         if not self.__model:
             raise ValueError("There is no compiled model to generate a summary")
 
-        print(self.__model)
-        print(
-            "Total Number \
-            of Parameters: ",
-            sum(p.numel() for p in self.__model.parameters()),
-        )
-        print(
-            "Total Number of Trainable \
-            Parameters: ",
-            sum(p.numel() for p in self.__model.parameters() if p.requires_grad),
-        )
+        if not isinstance(input_shape, tuple):
+            raise ValueError("Please provide a valid input shape to print the summary")
+
+        summary(self.__model, input_shape)
 
     def save(self, path):
         """The .save() method is responsible for saving a trained model. This method is
