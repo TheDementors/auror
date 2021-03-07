@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from torch._C import Value
 
 from py_progress import progressbar
 from torchsummary import summary
@@ -295,6 +296,9 @@ class Model:
         """
         if not self.__model:
             raise ValueError("There is no compiled model to generate a summary")
+
+        if not isinstance(input_shape, tuple):
+            raise ValueError("Please provide a valid input shape to print the summary")
 
         summary(self.__model, input_shape)
 
