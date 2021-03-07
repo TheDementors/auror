@@ -191,10 +191,13 @@ class Model:
                     val_batches, val_labels = (torch.from_numpy(val_batches), torch.from_numpy(val_labels))
 
                     total_validation_loss = 0
-                    total_validation_correts = 0
+                    total_validation_corrects = 0
 
                     for i in range(0, len(val_batches), batch_size):
-                        (total_validation_loss, total_validation_correts) = self.__model_loop(
+                        batch_x = val_batches[i : i + batch_size]
+                        batch_y = val_batches[i : i + batch_size]
+
+                        (total_validation_loss, total_validation_corrects) = self.__model_loop(
                             batch_x=batch_x, batch_y=batch_y, is_training=False
                         )
 
@@ -207,7 +210,7 @@ class Model:
                             epoch,
                             epochs,
                             total_validation_loss,
-                            total_validation_correts,
+                            total_validation_corrects,
                             validation=True,
                         )
 
@@ -233,9 +236,9 @@ class Model:
                     for i, (batch_x, batch_y) in enumerate(train_data):
 
                         total_validation_loss = 0
-                        total_validation_correts = 0
+                        total_validation_corrects = 0
 
-                        (total_validation_loss, total_validation_correts) = self.__model_loop(
+                        (total_validation_loss, total_validation_corrects) = self.__model_loop(
                             batch_x=batch_x, batch_y=batch_y, is_training=False
                         )
 
@@ -245,7 +248,7 @@ class Model:
                             epoch,
                             epochs,
                             total_validation_loss,
-                            total_validation_correts,
+                            total_validation_corrects,
                             validation=True,
                         )
 
@@ -257,8 +260,30 @@ class Model:
     def predict_classes(self, predict_data):
         pass
 
-    def evaluate(self, evaluate_data):
-        pass
+    def evaluate(self, evaluate_data, batch_size=None, total_steps=None):
+        if isinstance(evaluate_data, tuple):
+            batches, labels = evaluate_data
+
+            if not (isinstance(batches, np.ndarray) or isinstance(labels, np.ndarray)):
+                raise ValueError("Please provide a valid data to train")
+
+            batches, labels = torch.from_numpy(batches), torch.from_numpy(labels)
+
+            for i in range(0, len(batches), batch_size):
+                batch_x = batches[i : i + batch_size]
+                batch_y = batches[i : i + batch_size]
+
+                (total_loss, total_corrects) = self.__model_loop(batch_x=batch_x, batch_y=batch_y, is_training=False)
+
+                total_batches = int(len(batches) / batch_size)
+                current_batch = int(i / batch_size)
+
+                self.__print_progress(current_batch, total_batches, 0, 1, total_loss, total_corrects, validation=True)
+        else:
+            for i, (batch_x, batch_y) in enumerate(evaluate_data):
+                (total_loss, total_corrects) = self.__model_loop(batch_x=batch_x, batch_y=batch_y, is_training=False)
+
+                self.__print_progress(i // len(batch_x), total_steps, 0, 1, total_loss, total_corrects, validation=True)
 
     def summary(self):
         """Prints a summary of the model with all the layers, number of
